@@ -1,10 +1,10 @@
 # TerraMapKit
 
-面向 CesiumJS 的模块化 TypeScript 地图工具包。Core / MapKit、CoordinateKit、LayerKit、EffectKit 及 PickKit、DrawKit、CameraKit、PopupKit、MeasureKit、TilesetKit、TrackKit 已实现；MaskKit 提供实验性局部贴地掩膜。当前包保持私有，尚未发布到 npm。
+面向 CesiumJS 的模块化 TypeScript 地图工具包。提供地图创建、坐标转换、图层与业务标记、特效、拾取、绘制、镜头、弹窗、测量、模型及轨迹回放；MaskKit 提供实验性局部贴地掩膜。当前包保持私有，尚未发布到 npm。
 
-## 基础地图示例
+## 分模块示例中心
 
-运行 `pnpm example:dev`，访问 `http://127.0.0.1:5173`。示例支持地图销毁/重建、图层显隐/透明度/移除、掩膜创建/更新/移除，以及倾斜视角和离线合成地形。静态资源、样式与容器配置见 [示例说明](./examples/basic/README.md)。
+运行 `pnpm example:dev`，访问 `http://127.0.0.1:5173`。每个 Kit 提供独立场景、参数调整、操作按钮和代码复制。MarkerKit 支持点、图片、文字、组合标记与点击事件；原综合演示保留在 `/legacy.html`。文档构建自动包含示例中心，详见 [示例中心](./docs/示例中心.md) 与 [MarkerKit API](./docs/kits/MarkerKit.md)。
 
 ## 已实现：坐标转换
 
@@ -29,6 +29,7 @@ Kit 模块 的方法表、示例和限制见 [Kit API](./docs/API说明.md)。�
 
 - `createMap` / `MapKit.createMap` 返回原生 `Cesium.Viewer`。
 - `LayerKit`、`MaskKit` 等模块接收原生 `Viewer`，不修改其属性。
+- `LayerKit` 统一支持影像、Canvas 热力图与原生点聚合，提供数据更新、显隐和资源清理，详见 [LayerKit API](./docs/kits/LayerKit.md)。
 - `CoordinateKit` 提供不依赖 `Viewer` 的经纬度与 `Cartesian3` 转换。
 - CesiumJS 由使用者安装；应用自行配置 Cesium 静态资源和 Widgets 样式。
 
@@ -50,4 +51,4 @@ pnpm docs:dev
 - [开发说明书](./docs/开发说明书.md)：架构、API 约定、实现路径与发布流程。
 - [API 说明](./docs/API说明.md)：拟定的公开 API，均标有实现状态。
 
-`pnpm package:check` 检查 npm 包的实际文件清单与所有导出目标，并生成 `artifacts/release/terra-map-kit-0.0.0.tgz` 供本地安装验证。该命令不会发布。首次发布仍需确认 npm 账号、正式包名、版本和许可证，见 [发布准备](./docs/发布准备.md)。
+`pnpm package:check` 检查 npm 包的实际文件清单与所有导出目标，并生成 `artifacts/release/terra-map-kit-0.0.0.tgz` 供本地安装验证。该命令不会发布。包验证与公开发布约定见 [安装与使用](./docs/安装与使用.md#包验证与发布约定)。

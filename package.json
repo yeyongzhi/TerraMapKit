@@ -57,6 +57,10 @@
       "types": "./dist/tileset/index.d.ts",
       "import": "./dist/tileset/index.js"
     },
+    "./marker": {
+      "types": "./dist/marker/index.d.ts",
+      "import": "./dist/marker/index.js"
+    },
     "./track": {
       "types": "./dist/track/index.d.ts",
       "import": "./dist/track/index.js"
@@ -66,8 +70,8 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "pnpm build && node --test tests/*.test.mjs",
-    "docs:dev": "vitepress dev docs",
-    "docs:build": "vitepress build docs",
+    "docs:dev": "node scripts/build-docs.mjs --dev",
+    "docs:build": "node scripts/build-docs.mjs",
     "docs:preview": "vitepress preview docs",
     "example:dev": "pnpm build && vite --config examples/basic/vite.config.mjs",
     "example:build": "pnpm build && vite build --config examples/basic/vite.config.mjs",

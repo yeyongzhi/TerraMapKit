@@ -8,7 +8,8 @@ TerraMapKit 按功能划分模块。通过根入口或模块子路径导入，�
 | --- | --- | --- |
 | [MapKit](./kits/MapKit.md) | 地图创建 | `terra-map-kit/core` |
 | [CoordinateKit](./kits/CoordinateKit.md) | 坐标转换 | `terra-map-kit/coordinate` |
-| [LayerKit](./kits/LayerKit.md) | 影像图层 | `terra-map-kit/layer` |
+| [LayerKit](./kits/LayerKit.md) | 影像、热力图与点聚合图层 | `terra-map-kit/layer` |
+| [MarkerKit](./kits/MarkerKit.md) | 点、图片、文字标记与点击事件 | `terra-map-kit/marker` |
 | [MaskKit](./kits/MaskKit.md) | 区域掩膜（实验性） | `terra-map-kit/mask` |
 | [EffectKit](./kits/EffectKit.md) | Entity 特效 | `terra-map-kit/effect` |
 | [PickKit](./kits/PickKit.md) | 屏幕拾取 | `terra-map-kit/pick` |

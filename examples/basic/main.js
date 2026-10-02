@@ -13,6 +13,7 @@ let layers, masks, maskHandle
 let effects, effectHandle, effectKind
 let picks, draws, cameras, popups, measures, tilesets, tracks, trackHandle, session, offPick, savedView
 let syntheticTerrain = false
+let heatHandle, clusterHandle
 const region = [
   { longitude: 115, latitude: 38 }, { longitude: 118, latitude: 38 },
   { longitude: 118, latitude: 41 }, { longitude: 115, latitude: 41 }
@@ -42,6 +43,7 @@ function destroyMap() {
   removeRenderError?.()
   removeRenderError = undefined
   layers?.dispose()
+  heatHandle = clusterHandle = undefined
   masks?.dispose()
   effects?.dispose()
   offPick?.(); offPick = undefined
@@ -244,7 +246,7 @@ document.querySelector('#popup-remove').addEventListener('click', action(() => {
 document.querySelector('#tiles-add').addEventListener('click', action(async () => {
   if (tilesets.getTileset('demo')) { report('离线模型已存在'); return }
   const kit = tilesets
-  const tileset = await kit.addTileset({ id: 'demo', url: '/tiles/tileset.json', style: { color: "color('turquoise')" } })
+  const tileset = await kit.addTileset({ id: 'demo', url: `${import.meta.env.BASE_URL}tiles/tileset.json`, style: { color: "color('turquoise')" } })
   if (kit !== tilesets) return
   tileset.tileLoad.addEventListener(() => { if (kit === tilesets) report('离线 3D Tiles 内容已就绪：400 米立方体') })
   tileset.tileFailed.addEventListener(error => report(`模型内容加载失败：${error.message}`))
@@ -268,4 +270,35 @@ document.querySelector('#track-seek').addEventListener('click', action(() => { t
 document.querySelector('#track-speed').addEventListener('click', action(() => { trackHandle?.setSpeed(2); report('轨迹速度：2 倍') }))
 document.querySelector('#track-remove').addEventListener('click', action(() => { trackHandle?.remove(); trackHandle = undefined; report('轨迹已清除') }))
 window.addEventListener('pagehide', destroyMap)
+const samplePoints = Array.from({ length: 120 }, (_, index) => ({
+  id: `sensor-${index}`, longitude: 116.34 + (index % 12) * 0.008,
+  latitude: 39.87 + Math.floor(index / 12) * 0.006, height: 30, value: 0.2 + (index % 5) * 0.2
+}))
+document.querySelector('#heat-add').addEventListener('click', action(async () => {
+  heatHandle?.remove()
+  const kit = layers
+  const handle = await kit.addHeatmapLayer({ id: 'heat', data: samplePoints, bounds: { west: 116.30, south: 39.84, east: 116.47, north: 39.95 }, radius: 32, max: 2 })
+  if (kit !== layers) return
+  heatHandle = handle
+  cameras.setView({ ...center, height: 20000 }, { pitch: -Math.PI / 2 })
+  report('LayerKit 热力图：120 个加权观测点，固定色标 0–2')
+}))
+document.querySelector('#heat-update').addEventListener('click', action(async () => { await heatHandle?.setData(samplePoints.map(point => ({ ...point, value: point.value * 2 }))); report('热力权重已加倍，色标保持不变') }))
+document.querySelector('#heat-remove').addEventListener('click', action(() => { heatHandle?.remove(); heatHandle = undefined; report('热力图已移除') }))
+document.querySelector('#cluster-add').addEventListener('click', action(async () => {
+  clusterHandle?.remove()
+  const kit = layers
+  const handle = await kit.addClusterLayer({ id: 'sensors', data: samplePoints, pixelRange: 55, minimumClusterSize: 3 })
+  if (kit !== layers) return
+  clusterHandle = handle
+  cameras.setView({ ...center, height: 35000 }, { pitch: -Math.PI / 2 })
+  offPick?.(); offPick = picks.onClick(event => {
+    const picked = event.picked?.id ?? event.picked?.primitive?.id
+    if (Array.isArray(picked)) report(`聚合点包含 ${picked.length} 个观测点：${picked.slice(0, 3).map(entity => entity.id).join('、')}`)
+    else if (picked?.entityCollection === handle.dataSource.entities) report(`观测点：${picked.id}`)
+  })
+  report('LayerKit 聚合图层：120 个观测点，点击数量标记查看成员')
+}))
+document.querySelector('#cluster-toggle').addEventListener('click', action(() => { if (clusterHandle) { clusterHandle.setClustering(!clusterHandle.dataSource.clustering.enabled); report(`聚合${clusterHandle.dataSource.clustering.enabled ? '开启' : '关闭'}：120 个观测点`) } }))
+document.querySelector('#cluster-remove').addEventListener('click', action(() => { clusterHandle?.remove(); clusterHandle = undefined; offPick?.(); offPick = undefined; report('聚合图层已移除') }))
 initialize()

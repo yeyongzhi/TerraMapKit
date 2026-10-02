@@ -5,6 +5,7 @@ dist/
 examples/basic/public/cesium/
 docs/.vitepress/cache/
 docs/.vitepress/dist/
+docs/public/examples/
 *.tgz
 artifacts/
 .env

@@ -1,59 +1,11 @@
 <!doctype html>
 <html lang="zh-CN">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>TerraMapKit · 基础地图示例</title>
-  </head>
-  <body>
-    <header>
-      <div><strong>TerraMapKit</strong><span>地图、图层、掩膜与 Entity 特效 · 无需 Token</span></div>
-      <nav aria-label="地图操作">
-        <button id="reset" type="button">重建地图</button>
-        <button id="destroy" type="button">销毁地图</button>
-      </nav>
-    </header>
-    <section class="tools" aria-label="工具包操作">
-      <button id="layer-add" type="button">添加图层</button>
-      <button id="layer-toggle" type="button">切换图层显隐</button>
-      <label>图层透明度 <input id="alpha" type="range" min="0" max="1" step="0.1" value="0.6" /></label>
-      <button id="layer-remove" type="button">移除图层</button>
-      <button id="mask-add" type="button">添加掩膜</button>
-      <button id="mask-update" type="button">更新掩膜</button>
-      <button id="mask-remove" type="button">移除掩膜</button>
-      <button id="tilt" type="button">倾斜视角</button>
-      <button id="terrain" type="button">切换合成地形</button>
-    </section>
-    <section class="tools" aria-label="特效操作">
-      <button id="effect-ripple" type="button">波纹圈</button>
-      <button id="effect-diffusion" type="button">扩散圈</button>
-      <button id="effect-wave" type="button">波形线</button>
-      <button id="effect-update" type="button">更新特效</button>
-      <button id="effect-pause" type="button">暂停／恢复特效</button>
-      <button id="effect-remove" type="button">清除特效</button>
-    </section>
-    <details class="kit-panel" open>
-      <summary>拾取 · 绘制 · 测量 · 镜头 · 弹窗 · 模型 · 轨迹</summary>
-      <section class="tools" aria-label="绘制测量操作">
-        <select id="tool-kind" aria-label="交互类型">
-          <option value="pick">点击拾取</option><option value="draw-point">绘制点</option><option value="draw-polyline">绘制线</option><option value="draw-polygon">绘制面</option>
-          <option value="measure-distance">测距离</option><option value="measure-area">测面积</option><option value="measure-height">测高差</option>
-        </select>
-        <button id="tool-start">开始交互</button><button id="tool-undo">撤销点</button><button id="tool-finish">完成绘制</button><button id="tool-cancel">取消交互</button><button id="tool-clear">清除绘制测量</button><button id="tool-demo">生成绘制测量演示</button>
-      </section>
-      <section class="tools" aria-label="镜头弹窗操作">
-        <button id="camera-save">保存视角</button><button id="camera-restore">恢复视角</button><button id="camera-orbit">环绕镜头</button><button id="camera-stop">停止环绕</button><button id="popup-show">显示弹窗</button><button id="popup-remove">关闭弹窗</button>
-      </section>
-      <section class="tools" aria-label="模型轨迹操作">
-        <button id="tiles-add">加载离线模型</button><button id="tiles-style">模型样式</button><button id="tiles-toggle">模型显隐</button><button id="tiles-remove">移除模型</button>
-        <button id="track-add">播放轨迹</button><button id="track-pause">暂停／恢复轨迹</button><button id="track-seek">跳至 10 秒</button><button id="track-speed">2 倍速</button><button id="track-remove">清除轨迹</button>
-      </section>
-    </details>
-    <main id="map" aria-label="Cesium 三维地球"></main>
-    <aside aria-live="polite">
-      <p id="status">正在初始化地图…</p>
-      <p id="checks"></p>
-    </aside>
-    <script type="module" src="/main.js"></script>
-  </body>
-</html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>TerraMapKit · 示例中心</title></head>
+<body>
+<header class="center-header"><a class="brand" href="#map">TerraMapKit <span>示例中心</span></a><div><span class="offline">本地数据 · 无需 Token</span><button id="rebuild">重建示例</button><button id="cleanup">清理场景</button></div></header>
+<div class="workspace">
+<nav class="module-nav" aria-label="Kit 示例导航"><p class="eyebrow">EXPLORE THE API</p><h1>模块示例</h1><div id="module-list"></div><a id="legacy-link">综合验证演示 ↗</a></nav>
+<main class="preview"><div class="preview-heading"><div><span id="kit-name" class="eyebrow"></span><h2 id="example-title"></h2><p id="example-description"></p></div><a id="api-link" target="_blank" rel="noopener">API 文档 ↗</a></div><div id="map" aria-label="Cesium 示例地图"></div><section class="result" aria-live="polite"><span class="eyebrow">运行结果</span><p id="status">正在初始化…</p><p id="resources"></p></section></main>
+<aside class="inspector"><section><div class="section-heading"><h2>参数设置</h2><span id="parameter-state">已应用</span></div><form id="parameters"></form><button id="apply" type="submit" form="parameters" class="primary">应用参数</button><p class="hint">修改后点击应用参数。重建与切换模块会清理上一场景。</p><div id="actions" class="actions" aria-label="示例操作"></div></section><section class="code-section"><div class="section-heading"><h2>代码示例</h2><button id="copy-code">复制代码</button></div><p class="hint">对应当前运行参数；需安装 Cesium、配置静态资源并提供 #map 容器。</p><pre tabindex="0" aria-label="当前示例代码"><code id="code"></code></pre><p id="copy-status" aria-live="polite"></p></section></aside>
+</div><script type="module" src="/center.js"></script>
+</body></html>

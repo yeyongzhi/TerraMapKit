@@ -8,6 +8,7 @@ export default defineConfig({
   themeConfig: {
     nav: [
       { text: '首页', link: '/' },
+      { text: '示例中心', link: '/示例中心' },
       { text: '项目说明书', link: '/项目说明书' },
       { text: '开发说明书', link: '/开发说明书' },
       { text: 'Kit API', link: '/API说明' }
@@ -16,14 +17,16 @@ export default defineConfig({
       { text: '入门指南', items: [
         { text: '项目概览', link: '/' },
         { text: '安装与使用', link: '/安装与使用' },
-        { text: 'API 总览', link: '/API说明' }
+        { text: 'API 总览', link: '/API说明' },
+        { text: '示例中心', link: '/示例中心' }
       ] },
       {
         text: 'Kit API',
         items: [
           { text: 'MapKit · 地图创建', link: '/kits/MapKit' },
           { text: 'CoordinateKit · 坐标转换', link: '/kits/CoordinateKit' },
-          { text: 'LayerKit · 影像图层', link: '/kits/LayerKit' },
+          { text: 'LayerKit · 图层管理', link: '/kits/LayerKit' },
+          { text: 'MarkerKit · 业务标记', link: '/kits/MarkerKit' },
           { text: 'MaskKit · 区域掩膜', link: '/kits/MaskKit' },
           { text: 'EffectKit · Entity 特效', link: '/kits/EffectKit' },
           { text: 'PickKit · 屏幕拾取', link: '/kits/PickKit' },
@@ -39,8 +42,7 @@ export default defineConfig({
         text: '项目文档',
         items: [
           { text: '项目说明书', link: '/项目说明书' },
-          { text: '开发说明书', link: '/开发说明书' },
-          { text: '发布准备', link: '/发布准备' }
+          { text: '开发说明书', link: '/开发说明书' }
         ]
       }
     ],
