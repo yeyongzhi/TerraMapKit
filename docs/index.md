@@ -24,4 +24,4 @@ features:
 
 > Core / MapKit、CoordinateKit、LayerKit 和 EffectKit 已实现，MaskKit 为实验性局部贴地能力。完整示例支持图层、掩膜、地形和 Entity 特效操作；当前尚未发布 npm 包。
 
-七个扩展模块的完整方法、示例和能力边界见 [扩展 Kit 说明](./扩展Kit说明.md)。
+各 Kit 模块的完整方法、示例和能力边界见 [Kit API](./API说明.md)。

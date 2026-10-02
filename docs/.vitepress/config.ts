@@ -10,19 +10,36 @@ export default defineConfig({
       { text: '首页', link: '/' },
       { text: '项目说明书', link: '/项目说明书' },
       { text: '开发说明书', link: '/开发说明书' },
-      { text: 'API', link: '/API说明' }
+      { text: 'Kit API', link: '/API说明' }
     ],
     sidebar: [
-      { text: '开始', items: [{ text: '项目概览', link: '/' }] },
+      { text: '入门指南', items: [
+        { text: '项目概览', link: '/' },
+        { text: '安装与使用', link: '/安装与使用' },
+        { text: 'API 总览', link: '/API说明' }
+      ] },
       {
-        text: '设计文档',
+        text: 'Kit API',
+        items: [
+          { text: 'MapKit · 地图创建', link: '/kits/MapKit' },
+          { text: 'CoordinateKit · 坐标转换', link: '/kits/CoordinateKit' },
+          { text: 'LayerKit · 影像图层', link: '/kits/LayerKit' },
+          { text: 'MaskKit · 区域掩膜', link: '/kits/MaskKit' },
+          { text: 'EffectKit · Entity 特效', link: '/kits/EffectKit' },
+          { text: 'PickKit · 屏幕拾取', link: '/kits/PickKit' },
+          { text: 'DrawKit · 交互绘制', link: '/kits/DrawKit' },
+          { text: 'CameraKit · 镜头控制', link: '/kits/CameraKit' },
+          { text: 'PopupKit · 地理弹窗', link: '/kits/PopupKit' },
+          { text: 'MeasureKit · 空间测量', link: '/kits/MeasureKit' },
+          { text: 'TilesetKit · 三维模型', link: '/kits/TilesetKit' },
+          { text: 'TrackKit · 轨迹回放', link: '/kits/TrackKit' }
+        ]
+      },
+      {
+        text: '项目文档',
         items: [
           { text: '项目说明书', link: '/项目说明书' },
           { text: '开发说明书', link: '/开发说明书' },
-          { text: 'API 说明', link: '/API说明' },
-          { text: 'Entity 特效', link: '/特效说明' },
-          { text: '七个扩展 Kit', link: '/扩展Kit说明' },
-          { text: '安装与使用', link: '/安装与使用' },
           { text: '发布准备', link: '/发布准备' }
         ]
       }

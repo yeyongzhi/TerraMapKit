@@ -8,7 +8,7 @@
 
 ## 已实现：坐标转换
 
-已新增 **EffectKit**：基于 Entity 的波纹圈、扩散圈与正弦波形线，支持独立更新、暂停、恢复和移除。详见 [特效说明](./docs/特效说明.md)，浏览器示例提供完整操作按钮。
+已新增 **EffectKit**：基于 Entity 的波纹圈、扩散圈与正弦波形线，支持独立更新、暂停、恢复和移除。详见 [EffectKit 文档](./docs/kits/EffectKit.md)，浏览器示例提供完整操作按钮。
 
 ```ts
 import { CoordinateKit } from 'terra-map-kit/coordinate'
@@ -21,11 +21,11 @@ const positions = CoordinateKit.fromDegreesArray([
 ])
 ```
 
-当前示例用于构建后的本地包或仓库自引用，不能通过 npm 安装本项目。经纬度为 WGS84 角度，高度为米；完整范围、错误和浮点限制见 [API 说明](./docs/API说明.md#coordinatekit)。
+当前示例用于构建后的本地包或仓库自引用，不能通过 npm 安装本项目。经纬度为 WGS84 角度，高度为米；完整范围、错误和浮点限制见 [CoordinateKit 文档](./docs/kits/CoordinateKit.md)。
 
 ## 设计方向
 
-七个扩展 Kit 的方法表、示例和限制见 [扩展 Kit 说明](./docs/扩展Kit说明.md)。浏览器示例支持拾取、点线面绘制、测量、镜头保存与环绕、地理弹窗、离线 3D Tiles 及轨迹回放。
+Kit 模块 的方法表、示例和限制见 [Kit API](./docs/API说明.md)。浏览器示例支持拾取、点线面绘制、测量、镜头保存与环绕、地理弹窗、离线 3D Tiles 及轨迹回放。
 
 - `createMap` / `MapKit.createMap` 返回原生 `Cesium.Viewer`。
 - `LayerKit`、`MaskKit` 等模块接收原生 `Viewer`，不修改其属性。

@@ -33,4 +33,4 @@ MaskKit 当前为实验性地表能力，不遮罩天空、3D Tiles 或独立 En
 
 浏览器必须支持 WebGL；不同 GPU、浏览器与移动端兼容性仍需分别验证。完整在线地图配置请由使用方选择 Provider 并提供自己的 Token。
 
-七个扩展 Kit 的操作在可折叠面板中：选择工具后开始交互，左键加点、右键完成，按钮支持撤销和取消。演示几何、弹窗、轨迹及离线模型均无需 Token。离线模型由 scripts/generate-demo-tileset.mjs 生成，静态素材位于 public/tiles。完整方法和限制见 docs/扩展Kit说明.md。
+Kit 模块 的操作在可折叠面板中：选择工具后开始交互，左键加点、右键完成，按钮支持撤销和取消。演示几何、弹窗、轨迹及离线模型均无需 Token。离线模型由 scripts/generate-demo-tileset.mjs 生成，静态素材位于 public/tiles。完整方法和限制见 docs/API说明.md。
