@@ -22,4 +22,6 @@ features:
     details: 项目说明书描述做什么，开发说明书描述怎么做，API 页面描述调用约定。
 ---
 
-> 当前是骨架阶段，文档中的功能与 API 是实施计划，尚未发布可用 npm 包。
+> Core / MapKit、CoordinateKit、LayerKit 和 EffectKit 已实现，MaskKit 为实验性局部贴地能力。完整示例支持图层、掩膜、地形和 Entity 特效操作；当前尚未发布 npm 包。
+
+七个扩展模块的完整方法、示例和能力边界见 [扩展 Kit 说明](./扩展Kit说明.md)。

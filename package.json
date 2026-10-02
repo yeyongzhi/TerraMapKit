@@ -4,7 +4,10 @@
   "private": true,
   "description": "A modular TypeScript toolkit for CesiumJS",
   "type": "module",
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -25,15 +28,52 @@
     "./coordinate": {
       "types": "./dist/coordinate/index.d.ts",
       "import": "./dist/coordinate/index.js"
+    },
+    "./effect": {
+      "types": "./dist/effect/index.d.ts",
+      "import": "./dist/effect/index.js"
+    },
+    "./pick": {
+      "types": "./dist/pick/index.d.ts",
+      "import": "./dist/pick/index.js"
+    },
+    "./draw": {
+      "types": "./dist/draw/index.d.ts",
+      "import": "./dist/draw/index.js"
+    },
+    "./camera": {
+      "types": "./dist/camera/index.d.ts",
+      "import": "./dist/camera/index.js"
+    },
+    "./popup": {
+      "types": "./dist/popup/index.d.ts",
+      "import": "./dist/popup/index.js"
+    },
+    "./measure": {
+      "types": "./dist/measure/index.d.ts",
+      "import": "./dist/measure/index.js"
+    },
+    "./tileset": {
+      "types": "./dist/tileset/index.d.ts",
+      "import": "./dist/tileset/index.js"
+    },
+    "./track": {
+      "types": "./dist/track/index.d.ts",
+      "import": "./dist/track/index.js"
     }
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
+    "test": "pnpm build && node --test tests/*.test.mjs",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs",
-    "check": "pnpm typecheck && pnpm build && pnpm docs:build"
+    "example:dev": "pnpm build && vite --config examples/basic/vite.config.mjs",
+    "example:build": "pnpm build && vite build --config examples/basic/vite.config.mjs",
+    "example:preview": "vite preview --config examples/basic/vite.config.mjs",
+    "package:check": "pnpm build && node scripts/verify-package.mjs",
+    "check": "pnpm typecheck && pnpm test && pnpm docs:build && pnpm example:build && node scripts/verify-package.mjs"
   },
   "peerDependencies": {
     "cesium": "^1.145.0"
@@ -41,6 +81,7 @@
   "devDependencies": {
     "cesium": "^1.145.0",
     "typescript": "^5.9.3",
+    "vite": "5.4.21",
     "vitepress": "^1.6.4"
   },
   "engines": {

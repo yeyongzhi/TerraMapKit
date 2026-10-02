@@ -19,11 +19,15 @@ export default defineConfig({
         items: [
           { text: '项目说明书', link: '/项目说明书' },
           { text: '开发说明书', link: '/开发说明书' },
-          { text: 'API 说明', link: '/API说明' }
+          { text: 'API 说明', link: '/API说明' },
+          { text: 'Entity 特效', link: '/特效说明' },
+          { text: '七个扩展 Kit', link: '/扩展Kit说明' },
+          { text: '安装与使用', link: '/安装与使用' },
+          { text: '发布准备', link: '/发布准备' }
         ]
       }
     ],
     search: { provider: 'local' },
-    footer: { message: 'TerraMapKit · 规划与项目骨架阶段' }
+    footer: { message: 'TerraMapKit · 首版开发验证 · MaskKit 实验性' }
   }
 })

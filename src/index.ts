@@ -1,5 +1,13 @@
-// TerraMapKit is in the planning/scaffold phase. Public APIs are added per milestone.
+// First-release modules; MaskKit is experimental and limited to local regions.
 export * from './core/index.js'
 export * from './layer/index.js'
 export * from './mask/index.js'
 export * from './coordinate/index.js'
+export * from './effect/index.js'
+export * from './pick/index.js'
+export * from './draw/index.js'
+export * from './camera/index.js'
+export * from './popup/index.js'
+export * from './measure/index.js'
+export * from './tileset/index.js'
+export * from './track/index.js'
