@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { execSync } from 'node:child_process'
-import { mkdirSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 
 const manifest = JSON.parse(readFileSync('package.json', 'utf8'))
 const env = Object.fromEntries(Object.entries(process.env).filter(([key]) =>
@@ -13,7 +13,11 @@ for (const entry of Object.values(manifest.exports)) {
   for (const path of Object.values(entry)) assert.ok(paths.has(path.replace(/^\.\//, '')), `Missing export: ${path}`)
 }
 for (const path of paths) {
-  assert.ok(path.startsWith('dist/') || ['README.md', 'package.json', 'LICENSE', 'LICENSE.md'].includes(path), `Unexpected packed file: ${path}`)
+  assert.ok(path.startsWith('dist/') || ['README.md', 'CHANGELOG.md', 'package.json', 'LICENSE', 'LICENSE.md'].includes(path), `Unexpected packed file: ${path}`)
+  if (path.startsWith('dist/')) {
+    const source = path.replace(/^dist\//, 'src/').replace(/(?:\.d\.ts\.map|\.d\.ts|\.js\.map|\.js)$/, '.ts')
+    assert.ok(existsSync(source), `Stale or unsupported build artifact: ${path}`)
+  }
 }
 assert.equal(packed.bundled.length, 0, 'Cesium must not be bundled')
 mkdirSync('artifacts/release', { recursive: true })

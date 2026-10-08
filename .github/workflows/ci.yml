@@ -21,3 +21,17 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:browser
+      - run: pnpm test:docs
+      - run: pnpm package:consumer
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-test-results
+          retention-days: 14
+          if-no-files-found: ignore
+          path: |
+            playwright-report/
+            test-results/
+            artifacts/performance/

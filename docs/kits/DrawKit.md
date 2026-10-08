@@ -1,80 +1,85 @@
-# DrawKit · 交互绘制
+# DrawKit · 绘制与编辑
 
-管理点、折线和多边形的绘制会话，支持撤销、结果快照和 GeoJSON 导出。
-
-## 模块入口
+管理点、折线和多边形的绘制、编辑与 GeoJSON 导入导出。使用存活的原生 Cesium Viewer 构造。
 
 ```ts
 import { DrawKit } from 'terra-map-kit/draw'
+const draws = new DrawKit(viewer)
 ```
 
-使用 `new DrawKit(viewer)` 构造；viewer 必须是存活的原生 Cesium Viewer。 根入口 `terra-map-kit` 同样导出本模块。公开类与类型：`DrawKit, DrawType, DrawOptions, DrawSession, DrawResult, DrawGeoJSON`。
+根入口也导出本模块及 DrawOptions、DrawSession、DrawResult、DrawEditOptions、DrawEditSession、EditMode、DrawGeoJSON、DrawFeatureCollection、GeoJSONImportOptions、DrawProperties 等类型。
 
-## 功能与方法
+## 管理方法
 
-| 方法 | 返回 / 行为 |
+| 方法 | 行为 |
 | --- | --- |
-| `start(options)` | DrawSession；新会话取消旧会话 |
-| `cancel()` | 取消当前会话并移除预览 |
-| `remove(idOrResult)` | 移除完成结果，返回实际移除状态 |
-| `toGeoJSON(result)` | Point / LineString / Polygon Feature |
-| `clear()` / `dispose()` | 清理会话、结果 / 释放交互 handler |
+| `start(options)` | 开始绘制，取消已有绘制或编辑会话 |
+| `edit(resultOrId, options?)` | 编辑本实例拥有的结果，取消旧会话 |
+| `fromGeoJSON(data, options?)` | 导入几何、Feature 或 FeatureCollection，返回结果数组 |
+| `getResult(id)` / `getResults()` | 查询结果；剔除被外部移除的 Entity |
+| `toGeoJSON(result)` / `toFeatureCollection()` | 导出一个 / 全部已提交结果 |
+| `cancel()` | 取消当前绘制或编辑 |
+| `remove(idOrResult)` | 移除结果，同时取消该结果的编辑 |
+| `clear()` / `dispose()` | 清理全部对象 / 释放实例，不销毁 Viewer |
 
-DrawOptions：type 为 point/polyline/polygon，可选 id、color、width、interactive、positionMode、maxPoints、onFinish、onCancel、onError。颜色默认青色，width 默认 3，范围 1–10。默认 terrain 拾取，左键添加点、移动预览、右键完成（不足点数时取消）。interactive:false 可在程序中添加点而不创建 handler。
+## 绘制
 
-DrawSession 暴露 entity、addPoint(Cartesian3)、undo():boolean、finish():DrawResult、cancel()。点只允许 1 点且自动完成；线至少 2 点；面至少 3 点。线/面默认最多 512 点，上限自动尝试完成；若几何无效，需撤销或取消。结果含只读 id/type/entity/positions，坐标为冻结快照。onFinish 抛错不会撤回已完成对象，仍可 clear/remove。
+DrawOptions.type 必填：point、polyline 或 polygon。可选 id（自动生成且必须唯一）、color（Color.CYAN）、width（3，范围 1–10 CSS 像素）、interactive（true）、positionMode（terrain）、maxPoints（点为 1，线/面为 512）、onFinish、onCancel、onError。颜色分量须在 0–1。
 
-多边形使用第一点 ENU 切平面校验，拒绝自交、退化、重复点；任一点距第一点空间距离不得超过 100 km，无孔洞和编辑手柄。面使用 perPositionHeight:true；线/面保留输入高度，不进行贴地采样。GeoJSON 坐标为经纬度、高度，面自动补闭合点，高度是椭球高度。
+左键添加点，移动鼠标预览，右键完成；不足最少点数时取消。DrawSession 提供 entity、addPoint(Cartesian3)、undo():boolean、finish():DrawResult、cancel()。点添加后自动完成；折线至少两点，多边形至少三点。达到 maxPoints 尝试完成；无效几何可撤销或取消。interactive:false 不创建鼠标 handler。结束后的会话不能继续修改。
+
+## 编辑与撤销
 
 ```ts
-import { DrawKit, CoordinateKit } from 'terra-map-kit'
-const draw = new DrawKit(viewer)
-const session = draw.start({ type: 'polyline', interactive: false })
-session.addPoint(CoordinateKit.fromDegrees(116.39, 39.9, 100))
-session.addPoint(CoordinateKit.fromDegrees(116.4, 39.91, 100))
-const result = session.finish()
-console.log(draw.toGeoJSON(result))
-draw.remove(result)
+const [polygon] = draws.fromGeoJSON({
+  type: 'Feature', id: 'geometry', properties: { visible: true },
+  geometry: { type: 'Polygon', coordinates: [[
+    [116.39, 39.9, 100], [116.4, 39.9, 100],
+    [116.4, 39.91, 100], [116.39, 39.91, 100], [116.39, 39.9, 100]
+  ]] }
+})
+const editor = draws.edit(polygon, {
+  onChange: positions => console.log('草稿', positions),
+  onFinish: result => console.log('已保存', draws.toGeoJSON(result))
+})
+editor.setMode('insert')
+// 点击青色中点插入；也可使用 vertex、delete 或 translate。
+// editor.undo(); editor.redo(); editor.finish(); 或 editor.cancel()
 ```
 
-
-## DrawOptions
-
-| 参数 | 类型 / 默认值 | 说明 |
-| --- | --- | --- |
-| type | DrawType，必填 | point / polyline / polygon |
-| id | string，自动生成 | 已完成结果的逻辑 ID，需唯一 |
-| color | Cesium.Color，CYAN | 四个颜色分量须在 0–1 |
-| width | number，3 | 线宽，1–10 CSS 像素 |
-| interactive | boolean，true | false 时仅使用会话的程序接口 |
-| positionMode | PickPositionMode，terrain | 交互坐标的拾取途径 |
-| maxPoints | number，点为 1，线/面为 512 | 整数，达到上限尝试自动完成 |
-| onFinish | (result: DrawResult) => void | 完成后收到 Entity 和冻结坐标快照 |
-| onCancel | () => void，可选 | 取消会话时通知 |
-| onError | (error: unknown) => void，可选 | 交互执行异常回调，省略时 console.error |
-
-
-## DrawSession 与 DrawResult
-
-| 成员 | 说明 |
+| 编辑成员 | 行为 |
 | --- | --- |
-| session.entity | 当前原生 Entity，包括未完成的预览对象 |
-| session.addPoint(position) | 复制 Cartesian3 添加顶点，相距小于 1 mm 的重复点拒绝 |
-| session.undo() | 移除最后一点；返回是否有点被撤销 |
-| session.finish() | 校验、登记并返回结果；不足点数抛 RangeError |
-| session.cancel() | 结束会话并移除预览，可重复调用 |
-| result.positions | 与输入隔离的只读坐标快照 |
+| `setMode(mode)` | vertex 拖顶点；insert 点击中点；delete 点击顶点；translate 拖动整个对象 |
+| `positions` / `handles` | 当前草稿冻结快照 / 辅助 Entity 的只读列表 |
+| `result` / `entity` | 原结果和原生 Entity，确认时保持身份 |
+| `selectVertex(index)` / `selectedIndex` | 选择顶点 / 当前选择 |
+| `moveVertex(index, Cartesian3)` | 替换指定顶点 |
+| `insertVertex(index, Cartesian3)` | 在 index 前插入，等于长度时追加；点不支持 |
+| `removeVertex(index)` | 删除顶点，仍须满足最少点数和几何约束 |
+| `translate(Cartesian3)` | 按 ECEF 米制向量整体平移 |
+| `undo()` / `redo()` | 返回是否执行成功；canUndo / canRedo 可用于按钮状态 |
+| `finish()` / `cancel()` | 提交并返回原结果 / 恢复原几何 |
 
-会话完成/取消后继续 addPoint、undo 或 finish 抛 Error。toGeoJSON 返回 Feature，不直接保存文件。
+DrawEditOptions 的 interactive 默认 true，positionMode 默认 terrain，preserveHeight 默认 true（交互顶点拖动保留原椭球高度）。程序接口直接采用传入坐标；整体移动是 ECEF 刚性平移，不保证椭球高度不变。interactive:false 不创建手柄和鼠标 handler。
 
+历史保留最近 100 次操作，一次拖动计为一步；撤销后新修改清空重做。无效几何不改变草稿或历史。onChange 收到冻结草稿；onFinish、onCancel 在清理会话后执行。调用方回调抛错不会撤回已生效操作；交互异常交给 onError，省略时 console.error。
 
-## 生命周期与错误处理
+预览更新原 Entity，但 result.positions 和 GeoJSON 导出始终读取已提交数据，直到 finish()。每次提交产生新冻结快照，旧快照保持不变。取消、新会话、删除或 dispose 均移除手柄并释放相机锁；画布外松开鼠标或窗口失焦也会结束拖动。
 
-先清理本 Kit，再销毁 Viewer。dispose 可重复调用，不销毁 Viewer；清理后创建或更新会抛 Error。Kit 只拥有自身创建/登记的对象。可保留返回的原生 Entity、HTMLElement 或 Primitive 与 Cesium API 混用，但不应把 Kit 对象转移到其他 Viewer。
+## GeoJSON 与结果
 
-参数的非法类型或非有限数值通常抛 TypeError，范围或几何限制抛 RangeError；重复 ID、失效会话或已清理实例抛 Error。异步原生错误保持原始原因，详见本页的方法说明。
+输入接受 Point、LineString、单外环 Polygon，以及 Feature / FeatureCollection；集合最多 1000 个 Feature。导入前校验整个批次，重复 ID、非法坐标或不支持的几何不会留下部分结果。
 
+坐标采用 WGS84 `[经度, 纬度, 椭球高度]`，经纬度单位为度，二维坐标高度补 0。Polygon 输入必须闭合，内部去除闭合重复点；导出补闭合点并规范外环为逆时针。约定参见 [RFC 7946](https://www.rfc-editor.org/rfc/rfc7946)。不支持孔洞、Multi 几何、GeometryCollection、null geometry 和旧式 crs。
 
-## 相关模块
+GeoJSONImportOptions 提供 color、width、idPrefix。逻辑 ID 优先 Feature.id，其次字符串 properties.id，否则自动生成；前缀只改变内部 ID。原 Feature 字符串或数字 ID（包括 0）保存在 featureId 并原样导出。properties 深复制并冻结，保留 null 和嵌套 JSON；拒绝循环、非有限数、函数和非普通对象，嵌套深度最多 32。bbox 与其他外来字段不保留。
 
-[API 总览](../API说明.md) · [安装与使用](../安装与使用.md) · [CoordinateKit](./CoordinateKit.md)
+DrawResult 包含只读 id、type、entity、positions、properties、featureId。导出返回独立 JSON 对象，不直接写文件；示例中心“绘制、编辑与 GeoJSON”提供通用文本导入导出。
+
+## 几何约束与生命周期
+
+线/面最多 512 点；任意两点相距小于 1 mm 视为重复。多边形使用第一点 ENU 切平面校验，拒绝自交、退化、跨日期变更线；任一点距第一点空间距离不超过 100 km。面使用 perPositionHeight:true，线/面保留高度，不自动贴地采样。
+
+只操作本实例登记且仍存活的结果；外部删除后结果和会话失效。类型错误通常抛 TypeError，范围或几何错误抛 RangeError，重复 ID、失效状态抛 Error。先清理 Kit 再销毁 Viewer；dispose 可重复调用，清理后不能新增或编辑。
+
+[API 总览](../API说明.md) · [示例中心](../示例中心.md) · [CoordinateKit](./CoordinateKit.md) · [EffectKit](./EffectKit.md)

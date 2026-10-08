@@ -8,6 +8,8 @@ docs/.vitepress/dist/
 docs/public/examples/
 *.tgz
 artifacts/
+playwright-report/
+test-results/
 .env
 .env.*
 !.env.example

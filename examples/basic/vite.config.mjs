@@ -28,5 +28,5 @@ export default defineConfig({
   plugins: [{ name: 'cesium-static-resources', buildStart: copyCesiumResources }],
   server: { host: '127.0.0.1', port: 5173, strictPort: true },
   preview: { host: '127.0.0.1', port: 5173, strictPort: true },
-  build: { outDir: output, emptyOutDir: true, chunkSizeWarningLimit: 2000, rollupOptions: { input: { center: resolve(root, 'index.html'), legacy: resolve(root, 'legacy.html') } } }
+  build: { outDir: output, emptyOutDir: true, chunkSizeWarningLimit: 2000, rollupOptions: { input: { center: resolve(root, 'index.html') } } }
 })

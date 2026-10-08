@@ -8,7 +8,6 @@ const element = id => document.getElementById(id)
 const values = new Map(modules.map(module => [module.id, Object.fromEntries(module.fields.map(field => [field.key, field.value]))]))
 let active, current, revision = 0
 const base = import.meta.env.BASE_URL
-element('legacy-link').href = `${base}legacy.html`
 for (const module of modules) {
   const button = document.createElement('button')
   button.type = 'button'; button.dataset.module = module.id
@@ -33,10 +32,10 @@ function cleanup() {
 function code(module, params) {
   const setup = `import { Cartesian3, Color, EllipsoidTerrainProvider, GridImageryProvider, ImageryLayer, JulianDate } from 'cesium'\nimport { createMap } from 'terra-map-kit/core'\nconst viewer = createMap('map', {\n  baseLayerPicker: false,\n  baseLayer: new ImageryLayer(new GridImageryProvider({})),\n  terrainProvider: new EllipsoidTerrainProvider(),\n  geocoder: false, animation: false, timeline: false\n})\nviewer.clock.shouldAnimate = true\nviewer.camera.setView({ destination: Cartesian3.fromDegrees(116.39, 39.9, 16000) })\n\n`
   let body = module.code(params)
-  body = body.replace(/^(?:heat|cluster|layer|marker|sensors|tilesets)\.(?:setVisible|setClustering|show|alpha).*$/gm, '// 可选操作：$&')
+  body = body.replace(/^(?:heat|cluster|layer|marker|points|tilesets)\.(?:setVisible|setClustering|show|alpha).*$/gm, '// 可选操作：$&')
   body = body.replace("image: '/pin.svg'", `image: '${base}pin.svg'`).replace("url: '/tiles/tileset.json'", `url: '${base}tiles/tileset.json'`)
   body = body.replace(/^(\w+\.dispose\(\)|\w+\.remove\(\)|off\(\))$/gm, '// 页面离开时：$1')
-  if (module.id === 'layer' && params.kind !== 'imagery') body = body.replace('const layers =', `const data = Array.from({ length: 120 }, (_, i) => ({\n  id: 'sensor-' + i, longitude: 116.34 + i % 12 * 0.008,\n  latitude: 39.87 + Math.floor(i / 12) * 0.006,\n  height: 30, value: 0.2 + i % 5 * 0.2\n}))\nconst nextData = data.map(point => ({ ...point, value: point.value * 2 }))\nconst layers =`)
+  if (module.id === 'layer' && params.kind !== 'imagery' && params.kind !== 'basemap') body = body.replace('const layers =', `const data = Array.from({ length: 120 }, (_, i) => ({\n  id: 'point-' + i, longitude: 116.34 + i % 12 * 0.008,\n  latitude: 39.87 + Math.floor(i / 12) * 0.006,\n  height: 30, value: 0.2 + i % 5 * 0.2\n}))\nconst nextData = data.map(point => ({ ...point, value: point.value * 2 }))\nconst layers =`)
   return (module.id === 'map' ? '' : setup) + body + '\n\n// 最后清理 Viewer：viewer.destroy()'
 }
 function form(module) {

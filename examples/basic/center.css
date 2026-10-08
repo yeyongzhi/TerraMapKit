@@ -20,7 +20,6 @@ h1 { font-size: 18px; margin: 9px 8px 20px; }
 .module-nav button { width: 100%; text-align: left; padding: 9px 11px; margin-bottom: 3px; background: transparent; border-color: transparent; }
 .module-nav button span { display: block; font-size: 10px; color: #8aa2bc; margin-top: 3px; }
 .module-nav button[aria-current="page"] { border-color: #266574; color: #80e9df; background: #103341; }
-#legacy-link { display: block; font-size: 12px; margin: 20px 9px; }
 .preview { min-height: 0; min-width: 0; display: flex; flex-direction: column; }
 .preview-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 22px 24px 18px; border-bottom: 1px solid #24364a; }
 .preview-heading h2 { font-size: 23px; margin: 7px 0; letter-spacing: -.02em; }
@@ -45,4 +44,14 @@ h1 { font-size: 18px; margin: 9px 8px 20px; }
 pre { background: #09131f; border: 1px solid #263c52; border-radius: 8px; padding: 13px; max-height: 420px; overflow: auto; line-height: 1.7; font-size: 10px; color: #a8dfd8; tab-size: 2; }
 #copy-status { font-size: 10px; color: #81d6c7; }
 @media (max-width: 1050px) { .workspace { grid-template-columns: 170px minmax(0, 1fr) 285px; } .inspector { padding: 15px; } .preview-heading { padding: 20px 16px; } }
-@media (max-width: 760px) { .offline { display: none; } .center-header { padding: 0 12px; } .brand span { display: none; } .workspace { height: auto; grid-template-columns: minmax(0, 1fr); } .module-nav { min-width: 0; padding: 12px; overflow-x: auto; border-right: 0; } .module-nav h1, .module-nav > .eyebrow, #legacy-link { display: none; } #module-list { display: flex; gap: 6px; } .module-nav button { width: auto; flex-shrink: 0; } .preview { height: 65dvh; } .inspector { overflow: visible; border-top: 1px solid #24364a; } pre { max-height: 260px; } }
+@media (max-width: 760px) { .offline { display: none; } .center-header { padding: 0 12px; } .brand span { display: none; } .workspace { height: auto; grid-template-columns: minmax(0, 1fr); } .module-nav { min-width: 0; padding: 12px; overflow-x: auto; border-right: 0; } .module-nav h1, .module-nav > .eyebrow { display: none; } #module-list { display: flex; gap: 6px; } .module-nav button { width: auto; flex-shrink: 0; } .preview { height: 65dvh; } .inspector { overflow: visible; border-top: 1px solid #24364a; } pre { max-height: 260px; } }
+/* GeoJSON editor stays inside the inspector on narrow screens. */
+.actions textarea { display: block; width: 100%; box-sizing: border-box; margin-top: 8px; padding: 10px; border: 1px solid #40536b; border-radius: 8px; background: #101e30; color: #e2e8f0; font: 12px/1.5 monospace; resize: vertical; }
+.actions label { grid-column: 1 / -1; min-width: 0; }
+.basemap-settings { grid-column: 1 / -1; min-width: 0; display: grid; gap: 8px; }
+.basemap-settings label { display: grid; gap: 5px; font-size: 12px; }
+.basemap-settings label[hidden] { display: none; }
+#parameters label[hidden] { display: none; }
+.basemap-settings input, .basemap-settings select { width: 100%; min-width: 0; box-sizing: border-box; padding: 7px; color: #e2e8f0; background: #101e30; border: 1px solid #40536b; border-radius: 5px; }
+.basemap-settings input[type="checkbox"] { width: auto; justify-self: start; }
+.actions input[type="file"] { grid-column: 1 / -1; width: 100%; min-width: 0; }

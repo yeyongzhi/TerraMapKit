@@ -1,255 +1,175 @@
-import {
-  CallbackProperty, Cartesian3, Color, ColorMaterialProperty, createGuid,
-  Entity, JulianDate, Matrix4, Transforms, type Viewer
-} from 'cesium'
-import { CoordinateKit, type DegreesPoint } from '../coordinate/index.js'
-
-export interface EffectOptions {
-  id?: string
-  position: DegreesPoint
-  color?: Color
-  /** One cycle in simulation seconds. Default: 3. */
-  duration?: number
-}
-export interface CircleEffectOptions extends EffectOptions {
-  radius?: number
-  minRadius?: number
-}
-export interface RippleEffectOptions extends CircleEffectOptions { count?: number }
-export interface WaveEffectOptions extends EffectOptions {
-  length?: number
-  amplitude?: number
-  wavelength?: number
-  segments?: number
-  width?: number
-}
-export interface EffectHandle<T extends EffectOptions = EffectOptions> {
-  readonly id: string
-  readonly entities: readonly Entity[]
-  readonly paused: boolean
-  /** Replace all options (except ID); restarts the cycle, retaining pause state. */
-  update(options: Omit<T, 'id'>): void
-  pause(): void
-  resume(): void
-  remove(): boolean
-}
-
-type Kind = 'ripple' | 'diffusion' | 'wave'
-type Options = RippleEffectOptions & WaveEffectOptions
-interface Config {
-  position: Cartesian3; color: Color; duration: number
-  radius: number; minRadius: number; count: number
-  length: number; amplitude: number; wavelength: number; segments: number; width: number
-}
+import { createGuid, JulianDate, type Entity, type Viewer } from 'cesium'
+import { assertViewer, finite, render } from '../internal/index.js'
+import { normalize, type Config } from './config.js'
+import { buildEntities, needsRebuild } from './renderers/index.js'
+import type { AnyEffectOptions, EffectBaseOptions, EffectHandle, EffectKind, CircleEffectOptions, RippleEffectOptions, WaveEffectOptions, PulsePointOptions, RadarScanOptions, LineEffectOptions, FlowLineOptions, FlightArcOptions, WallEffectOptions, PolygonPulseOptions } from './options.js'
+export * from './options.js'
 interface State {
-  id: string; kind: Kind; config: Config; entities: Entity[]; handle: EffectHandle
-  start: JulianDate; frozen: number; paused: boolean
+  id: string; kind: EffectKind; config: Config; entities: Entity[]; handle: EffectHandle<EffectBaseOptions>
+  anchor: JulianDate; offset: number; paused: boolean; completed: boolean
+  refreshCallbacks?: () => void
 }
-
-function number(value: number, name: string, min: number, max: number): number {
-  if (typeof value !== 'number' || !Number.isFinite(value)) throw new TypeError(`${name} must be finite`)
-  if (value < min || value > max) throw new RangeError(`${name} must be between ${min} and ${max}`)
-  return value
-}
-function normalize(options: Options, kind: Kind): Config {
-  if (!options || !options.position) throw new TypeError('position is required')
-  const position = CoordinateKit.fromDegrees(options.position.longitude, options.position.latitude, options.position.height ?? 10)
-  const color = options.color ?? Color.CYAN.withAlpha(0.8)
-  if (!(color instanceof Color) || ![color.red, color.green, color.blue, color.alpha].every(v => Number.isFinite(v) && v >= 0 && v <= 1)) {
-    throw new TypeError('color must be a Cesium Color with components between 0 and 1')
-  }
-  const duration = number(options.duration ?? 3, 'duration', 0.01, 86400)
-  const radius = number(kind === 'wave' ? 1000 : options.radius ?? 1000, 'radius', 1, 100000)
-  const minRadius = number(kind === 'wave' ? 1 : options.minRadius ?? 1, 'minRadius', 1, radius)
-  const count = number(kind === 'ripple' ? options.count ?? 3 : 1, 'count', 1, 8)
-  const segments = number(kind === 'wave' ? options.segments ?? 64 : 64, 'segments', 8, 256)
-  if (!Number.isInteger(count) || !Number.isInteger(segments)) throw new RangeError('count and segments must be integers')
-  return {
-    position, color: Color.clone(color), duration, radius, minRadius, count, segments,
-    length: number(kind === 'wave' ? options.length ?? 3000 : 3000, 'length', 1, 100000),
-    amplitude: number(kind === 'wave' ? options.amplitude ?? 300 : 300, 'amplitude', 0, 10000),
-    wavelength: number(kind === 'wave' ? options.wavelength ?? 1000 : 1000, 'wavelength', 1, 100000),
-    width: number(kind === 'wave' ? options.width ?? 3 : 3, 'width', 1, 10)
-  }
-}
-
-/** Entity-based effects driven by the Viewer simulation clock, without timers or shaders. */
+/** Independent playback cursors driven by the Viewer clock. Never modifies the shared clock. */
 export class EffectKit {
   private readonly states = new Map<string, State>()
   private disposed = false
   private removeTick: (() => void) | undefined
-
   constructor(private readonly viewer: Viewer) {
     this.assertActive()
     if (!viewer.entities || !viewer.clock?.onTick || !viewer.scene) throw new TypeError('viewer must expose entities, clock and scene')
   }
-  private assertActive(): void {
-    if (this.disposed) throw new Error('EffectKit has been disposed')
-    if (!this.viewer || typeof this.viewer.isDestroyed !== 'function') throw new TypeError('viewer must be a Cesium Viewer')
-    if (this.viewer.isDestroyed()) throw new Error('Viewer has been destroyed')
+  private assertActive(): void { assertViewer(this.viewer, this.disposed, 'EffectKit') }
+  private elapsed(state: State, time = this.viewer.clock.currentTime): number {
+    return state.offset + (state.paused ? 0 : JulianDate.secondsDifference(time, state.anchor) * state.config.speed)
   }
-  private elapsed(state: State, time: JulianDate): number {
-    return state.paused ? state.frozen : JulianDate.secondsDifference(time, state.start)
-  }
-  private phase(state: State, time: JulianDate, offset = 0): number {
-    const cycles = this.elapsed(state, time) / state.config.duration + offset
-    return ((cycles % 1) + 1) % 1
-  }
-  private alive(state: State): boolean {
-    return state.entities.every(entity => this.viewer.entities.contains(entity))
+  private phase(state: State, time?: JulianDate, offset = 0): number {
+    const cycles = this.elapsed(state, time) / state.config.duration
+    return state.config.loop ? ((cycles + offset) % 1 + 1) % 1 : Math.max(0, Math.min(1, cycles + offset))
   }
   private syncTick(): void {
-    const active = [...this.states.values()].some(state => !state.paused)
-    if (active && !this.removeTick) {
-      this.removeTick = this.viewer.clock.onTick.addEventListener(() => {
-        if (this.viewer.isDestroyed()) { this.dispose(); return }
-        for (const state of [...this.states.values()]) {
-          if (!this.alive(state)) this.removeEffect(state.handle)
+    const active = [...this.states.values()].some(s => !s.paused)
+    if (active && !this.removeTick) this.removeTick = this.viewer.clock.onTick.addEventListener(() => {
+      if (this.viewer.isDestroyed()) { this.dispose(); return }
+      const notifications: State[] = []
+      for (const state of [...this.states.values()]) {
+        if (!this.alive(state)) { this.removeEffect(state.handle); continue }
+        if (!state.paused && !state.config.loop && this.elapsed(state) >= state.config.duration) {
+          state.offset = state.config.duration; state.anchor = JulianDate.clone(this.viewer.clock.currentTime)
+          state.paused = true; state.completed = true; state.refreshCallbacks?.(); notifications.push(state)
         }
-        if ([...this.states.values()].some(state => !state.paused)) this.viewer.scene.requestRender()
-      })
-    } else if (!active && this.removeTick) {
-      this.removeTick(); this.removeTick = undefined
-    }
-    if (!this.viewer.isDestroyed()) this.viewer.scene.requestRender()
-  }
-  private buildEntities(state: State): Entity[] {
-    const now = (time?: JulianDate) => time ?? this.viewer.clock.currentTime
-    if (state.kind === 'wave') {
-      return [new Entity({
-        polyline: {
-          positions: new CallbackProperty(time => {
-            const config = state.config
-            const frame = Transforms.eastNorthUpToFixedFrame(config.position)
-            const phase = this.phase(state, now(time)) * Math.PI * 2
-            return Array.from({ length: config.segments + 1 }, (_, i) => {
-              const x = (i / config.segments - 0.5) * config.length
-              const y = config.amplitude * Math.sin(x / config.wavelength * Math.PI * 2 - phase)
-              return Matrix4.multiplyByPoint(frame, new Cartesian3(x, y, 0), new Cartesian3())
-            })
-          }, false),
-          width: new CallbackProperty(() => state.config.width, false),
-          material: new ColorMaterialProperty(new CallbackProperty(() => Color.clone(state.config.color), false)),
-          clampToGround: false
-        }
-      })]
-    }
-    return Array.from({ length: state.config.count }, (_, index) => {
-      const phase = (time?: JulianDate) => this.phase(state, now(time), index / state.config.count)
-      const radius = new CallbackProperty(time => state.config.minRadius
-        + (state.config.radius - state.config.minRadius) * phase(time), false)
-      const color = new CallbackProperty(time => state.config.color.withAlpha(state.config.color.alpha * (1 - phase(time))), false)
-      return new Entity({
-        position: state.config.position,
-        ellipse: {
-          semiMajorAxis: radius, semiMinorAxis: radius,
-          height: CoordinateKit.toDegrees(state.config.position).height,
-          fill: state.kind === 'diffusion', outline: state.kind === 'ripple',
-          outlineColor: color,
-          material: new ColorMaterialProperty(color)
-        }
-      })
+      }
+      this.syncTick(); render(this.viewer)
+      // Commit completion first; callbacks may remove effects or dispose the Kit.
+      let callbackError: unknown
+      let callbackFailed = false
+      for (const state of notifications) if (!this.disposed && this.states.get(state.id) === state && state.completed) {
+        try { state.config.onComplete?.(state.handle) }
+        catch (error) { if (!callbackFailed) callbackError = error; callbackFailed = true }
+      }
+      if (callbackFailed) throw callbackError
     })
+    if (!active && this.removeTick) { this.removeTick(); this.removeTick = undefined }
+    if (active) render(this.viewer)
   }
-
+  private alive(state: State): boolean { return state.entities.every(entity => this.viewer.entities.contains(entity)) }
+  private prune(): void { for (const state of [...this.states.values()]) if (!this.alive(state)) this.removeEffect(state.handle) }
+  get size(): number { this.assertActive(); this.prune(); return this.states.size }
+  getEffects(): readonly EffectHandle<EffectBaseOptions>[] { this.assertActive(); this.prune(); return Object.freeze([...this.states.values()].map(s => s.handle)) }
   addRipple(options: RippleEffectOptions): EffectHandle<RippleEffectOptions> { return this.add(options, 'ripple') }
   addDiffusionCircle(options: CircleEffectOptions): EffectHandle<CircleEffectOptions> { return this.add(options, 'diffusion') }
   addWave(options: WaveEffectOptions): EffectHandle<WaveEffectOptions> { return this.add(options, 'wave') }
-
-  private add<T extends Options>(options: T, kind: Kind): EffectHandle<T> {
+  addPulsePoint(options: PulsePointOptions): EffectHandle<PulsePointOptions> { return this.add(options, 'pulse') }
+  addGlowLine(options: LineEffectOptions): EffectHandle<LineEffectOptions> { return this.add(options, 'glow') }
+  addRadarScan(options: RadarScanOptions): EffectHandle<RadarScanOptions> { return this.add(options, 'radar') }
+  addFlowLine(options: FlowLineOptions): EffectHandle<FlowLineOptions> { return this.add(options, 'flow') }
+  addFlightArc(options: FlightArcOptions): EffectHandle<FlightArcOptions> { return this.add(options, 'arc') }
+  addWall(options: WallEffectOptions): EffectHandle<WallEffectOptions> { return this.add(options, 'wall') }
+  addPolygonPulse(options: PolygonPulseOptions): EffectHandle<PolygonPulseOptions> { return this.add(options, 'polygon') }
+  private add<T extends AnyEffectOptions>(options: T, kind: EffectKind): EffectHandle<T> {
     this.assertActive()
-    const config = normalize(options, kind)
-    const id = options.id ?? createGuid()
-    if (typeof id !== 'string' || id.trim() === '') throw new TypeError('id must be a non-empty string')
+    const config = normalize(options, kind), id = options.id ?? createGuid(), viewer = this.viewer
+    if (typeof id !== 'string' || !id.trim()) throw new TypeError('id must be a non-empty string')
     const previous = this.states.get(id)
     if (previous && this.alive(previous)) throw new Error(`Duplicate effect id: ${id}`)
     if (previous) this.removeEffect(previous.handle)
-    const state: State = {
-      id, kind, config, entities: [], handle: undefined as unknown as EffectHandle,
-      start: JulianDate.clone(this.viewer.clock.currentTime), paused: false, frozen: 0
-    }
+    const state: State = { id, kind, config, entities: [], handle: undefined as unknown as EffectHandle<EffectBaseOptions>, anchor: JulianDate.clone(viewer.clock.currentTime), offset: 0, paused: false, completed: false }
     const assertOwned = () => {
       this.assertActive()
       if (this.states.get(id) !== state || !this.alive(state)) throw new Error('Effect has been removed')
     }
+    const reanchor = () => { state.offset = this.elapsed(state); state.anchor = JulianDate.clone(viewer.clock.currentTime) }
+    const change = (next: AnyEffectOptions, replace: boolean) => {
+      assertOwned()
+      const nextConfig = normalize(next, kind)
+      const old = { config: state.config, anchor: state.anchor, offset: state.offset, completed: state.completed, refreshCallbacks: state.refreshCallbacks }
+      const rebuild = replace || needsRebuild(state.config, nextConfig, kind)
+      reanchor(); state.config = nextConfig
+      if (replace) { state.offset = 0; state.completed = false }
+      else if (!nextConfig.loop) { state.offset = Math.min(nextConfig.duration, Math.max(0, state.offset)); state.completed = old.completed && state.offset === nextConfig.duration }
+      else state.completed = false
+      const oldEntities = state.entities
+      let entities: Entity[] = []
+      try {
+        if (rebuild) {
+          entities = buildEntities(state, (time, offset) => this.phase(state, time, offset))
+          for (const entity of entities) { entity.show = nextConfig.show; viewer.entities.add(entity) }
+        }
+        assertOwned()
+      } catch (error) {
+        for (const entity of entities) viewer.entities.remove(entity)
+        Object.assign(state, old); throw error
+      }
+      if (rebuild) { state.entities = entities; for (const entity of oldEntities) viewer.entities.remove(entity) }
+      else for (const entity of state.entities) entity.show = nextConfig.show
+      state.refreshCallbacks?.(); this.syncTick(); render(viewer)
+    }
     const handle: EffectHandle<T> = Object.freeze({
-      id,
-      get entities() { return Object.freeze([...state.entities]) },
-      get paused() { return state.paused },
-      update: (next: Omit<T, 'id'>) => {
-        assertOwned()
-        const nextConfig = normalize(next as Options, kind)
-        const oldConfig = state.config, oldStart = state.start, oldFrozen = state.frozen
-        state.config = nextConfig
-        state.start = JulianDate.clone(this.viewer.clock.currentTime); state.frozen = 0
-        const oldEntities = state.entities
-        const entities = this.buildEntities(state)
-        try {
-          for (const entity of entities) this.viewer.entities.add(entity)
-          assertOwned()
-        } catch (error) {
-          for (const entity of entities) this.viewer.entities.remove(entity)
-          state.config = oldConfig; state.start = oldStart; state.frozen = oldFrozen
-          throw error
-        }
-        state.entities = entities
-        for (const entity of oldEntities) this.viewer.entities.remove(entity)
-        this.syncTick()
+      id, kind,
+      get entities() { return Object.freeze([...state.entities]) }, get paused() { return state.paused },
+      get visible() { return state.config.show }, get completed() { return state.completed },
+      get currentTime() {
+        const value = state.offset + (state.paused ? 0 : JulianDate.secondsDifference(viewer.clock.currentTime, state.anchor) * state.config.speed)
+        return state.config.loop ? ((value % state.config.duration) + state.config.duration) % state.config.duration : Math.max(0, Math.min(state.config.duration, value))
       },
-      pause: () => {
+      get duration() { return state.config.duration }, get speed() { return state.config.speed },
+      update: (next: Omit<T, 'id'>) => change(next as unknown as AnyEffectOptions, true),
+      patch: (next: Partial<Omit<T, 'id'>>) => {
         assertOwned()
-        if (!state.paused) { state.frozen = this.elapsed(state, this.viewer.clock.currentTime); state.paused = true }
-        this.syncTick()
+        if (!next || typeof next !== 'object' || Array.isArray(next)) throw new TypeError('patch must be an object')
+        if ('id' in next) throw new TypeError('An effect ID cannot be changed')
+        change({ ...state.config.input, ...next } as AnyEffectOptions, false)
       },
-      resume: () => {
-        assertOwned()
-        if (state.paused) {
-          state.start = JulianDate.addSeconds(this.viewer.clock.currentTime, -state.frozen, new JulianDate())
-          state.paused = false
-        }
-        this.syncTick()
+      setVisible: (show: boolean) => {
+        assertOwned(); if (typeof show !== 'boolean') throw new TypeError('show must be boolean')
+        state.config.show = show; state.config.input.show = show
+        for (const entity of state.entities) entity.show = show
+        render(viewer)
       },
+      pause: () => { assertOwned(); if (!state.paused) { reanchor(); state.paused = true }; state.refreshCallbacks?.(); this.syncTick(); render(viewer) },
+      resume: () => { assertOwned(); if (!state.paused || state.completed) return; state.anchor = JulianDate.clone(viewer.clock.currentTime); state.paused = false; state.refreshCallbacks?.(); this.syncTick(); render(viewer) },
+      restart: () => { assertOwned(); state.offset = 0; state.anchor = JulianDate.clone(viewer.clock.currentTime); state.completed = false; state.paused = false; state.refreshCallbacks?.(); this.syncTick(); render(viewer) },
+      seek: (seconds: number) => { assertOwned(); state.offset = finite(seconds, 'seconds', 0, state.config.duration); state.anchor = JulianDate.clone(viewer.clock.currentTime); state.completed = false; state.refreshCallbacks?.(); this.syncTick(); render(viewer) },
+      setSpeed: (speed: number) => { assertOwned(); finite(speed, 'speed', 0.001, 1000); reanchor(); state.config.speed = speed; state.config.input.speed = speed; state.refreshCallbacks?.(); render(viewer) },
       remove: () => this.removeEffect(handle)
     })
-    state.handle = handle
-    state.entities = this.buildEntities(state)
-    this.states.set(id, state)
+    state.handle = handle; this.states.set(id, state)
     try {
-      for (const entity of state.entities) this.viewer.entities.add(entity)
-      assertOwned()
-      this.syncTick()
-      return handle
+      state.entities = buildEntities(state, (time, offset) => this.phase(state, time, offset))
+      for (const entity of state.entities) { entity.show = config.show; viewer.entities.add(entity) }
+      assertOwned(); this.syncTick(); render(viewer); return handle
     } catch (error) {
       if (this.states.get(id) === state) this.states.delete(id)
-      for (const entity of state.entities) this.viewer.entities.remove(entity)
-      this.syncTick()
-      throw error
+      for (const entity of state.entities) viewer.entities.remove(entity)
+      this.syncTick(); throw error
     }
   }
-
-  getEffect(id: string): EffectHandle | undefined {
-    this.assertActive()
-    const state = this.states.get(id)
+  getEffect(id: string): EffectHandle<EffectBaseOptions> | undefined {
+    this.assertActive(); const state = this.states.get(id)
     if (state && !this.alive(state)) { this.removeEffect(state.handle); return undefined }
     return state?.handle
   }
-  removeEffect(idOrHandle: string | EffectHandle): boolean {
+  removeEffect(idOrHandle: string | EffectHandle<EffectBaseOptions>): boolean {
     if (this.disposed) return false
-    const id = typeof idOrHandle === 'string' ? idOrHandle : idOrHandle?.id
-    const state = this.states.get(id)
+    const id = typeof idOrHandle === 'string' ? idOrHandle : idOrHandle?.id, state = this.states.get(id)
     if (!state || typeof idOrHandle !== 'string' && state.handle !== idOrHandle) return false
     this.states.delete(id)
     let removed = false
     for (const entity of state.entities) removed = this.viewer.entities.remove(entity) || removed
-    this.syncTick()
-    return removed
+    this.syncTick(); render(this.viewer); return removed
+  }
+  pauseAll(): void { for (const handle of this.getEffects()) handle.pause() }
+  resumeAll(): void { for (const handle of this.getEffects()) handle.resume() }
+  clear(): void {
+    this.assertActive(); this.removeTick?.(); this.removeTick = undefined
+    const states = [...this.states.values()]; this.states.clear()
+    for (const state of states) for (const entity of state.entities) this.viewer.entities.remove(entity)
+    render(this.viewer)
   }
   dispose(): void {
     if (this.disposed) return
-    this.disposed = true
-    this.removeTick?.(); this.removeTick = undefined
-    for (const state of this.states.values()) for (const entity of state.entities) this.viewer.entities.remove(entity)
-    this.states.clear()
-    if (!this.viewer.isDestroyed()) this.viewer.scene.requestRender()
+    this.disposed = true; this.removeTick?.(); this.removeTick = undefined
+    const states = [...this.states.values()]; this.states.clear()
+    for (const state of states) for (const entity of state.entities) this.viewer.entities.remove(entity)
+    render(this.viewer)
   }
 }

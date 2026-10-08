@@ -15,13 +15,13 @@ test('marker exports, combined native graphics, snapshots and atomic validation'
   assert.throws(() => kit.addMarker({ id: 'foreign', position, point: {} }), /already exists/)
   assert.equal(viewer.entities.getById('foreign'), foreign)
   const tint = Color.clone(Color.RED), offset = new Cartesian2(2, -20)
-  const handle = kit.addMarker({ id: 'a', position, point: { color: tint }, image: { image: '/pin.svg' }, label: { text: 'sensor', pixelOffset: offset } })
+  const handle = kit.addMarker({ id: 'a', position, point: { color: tint }, image: { image: '/pin.svg' }, label: { text: 'point', pixelOffset: offset } })
   tint.red = 0; offset.x = 100
   assert.equal(handle.entity.point.color.getValue(now).red, 1)
   assert.equal(handle.entity.label.pixelOffset.getValue(now).x, 2)
   assert.equal(handle.entity.billboard.image.getValue(now), '/pin.svg')
   assert.throws(() => handle.update({ position, point: { pixelSize: -1 } }), /pixelSize/)
-  assert.equal(handle.entity.label.text.getValue(now), 'sensor')
+  assert.equal(handle.entity.label.text.getValue(now), 'point')
   const entity = handle.entity
   handle.update({ position: { ...position, height: 200 }, label: { text: 'updated' } })
   assert.equal(handle.entity, entity); assert.equal(entity.point, undefined); assert.equal(entity.billboard, undefined)

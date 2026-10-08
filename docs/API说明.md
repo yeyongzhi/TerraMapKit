@@ -7,9 +7,9 @@ TerraMapKit 按功能划分模块。通过根入口或模块子路径导入，�
 | 模块 | 职责 | 导入路径 |
 | --- | --- | --- |
 | [MapKit](./kits/MapKit.md) | 地图创建 | `terra-map-kit/core` |
-| [CoordinateKit](./kits/CoordinateKit.md) | 坐标转换 | `terra-map-kit/coordinate` |
-| [LayerKit](./kits/LayerKit.md) | 影像、热力图与点聚合图层 | `terra-map-kit/layer` |
-| [MarkerKit](./kits/MarkerKit.md) | 点、图片、文字标记与点击事件 | `terra-map-kit/marker` |
+| [CoordinateKit](./kits/CoordinateKit.md) | 坐标转换、ENU 与通用几何 | `terra-map-kit/coordinate` |
+| [LayerKit](./kits/LayerKit.md) | 底图切换、XYZ/WMTS/WMS、影像、热力图与点聚合 | `terra-map-kit/layer` |
+| [MarkerKit](./kits/MarkerKit.md) | 标记编辑、位置编辑、JSON 导入导出、点击和悬停事件 | `terra-map-kit/marker` |
 | [MaskKit](./kits/MaskKit.md) | 区域掩膜（实验性） | `terra-map-kit/mask` |
 | [EffectKit](./kits/EffectKit.md) | Entity 特效 | `terra-map-kit/effect` |
 | [PickKit](./kits/PickKit.md) | 屏幕拾取 | `terra-map-kit/pick` |
@@ -23,7 +23,7 @@ TerraMapKit 按功能划分模块。通过根入口或模块子路径导入，�
 ## 使用约定
 
 - MapKit 提供 createMap / MapKit.createMap，返回原生 Viewer，应用负责销毁。
-- CoordinateKit 与 MeasureKit 的静态计算方法无需 Viewer；其他管理对象的 Kit 接收原生 Viewer。
+- CoordinateKit、GeometryKit 与 MeasureKit 的静态计算方法无需 Viewer；其他管理对象的 Kit 接收原生 Viewer。
 - 经纬度使用 WGS84 角度，高度和距离使用米，面积使用平方米；CameraKit 的角度使用弧度。
 - Kit 只清理本实例对象，卸载时先 dispose，再 viewer.destroy；不向 Viewer 注入工具属性。
 - 动画跟随模拟时间，应用决定 shouldAnimate、multiplier 和 currentTime；不同交互工具切换时先取消前一会话。

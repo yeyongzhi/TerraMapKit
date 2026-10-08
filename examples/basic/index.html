@@ -2,9 +2,9 @@
 <html lang="zh-CN">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>TerraMapKit · 示例中心</title></head>
 <body>
-<header class="center-header"><a class="brand" href="#map">TerraMapKit <span>示例中心</span></a><div><span class="offline">本地数据 · 无需 Token</span><button id="rebuild">重建示例</button><button id="cleanup">清理场景</button></div></header>
+<header class="center-header"><a class="brand" href="#map">TerraMapKit <span>示例中心</span></a><div><span class="offline">默认离线 · 在线底图需配置</span><button id="rebuild">重建示例</button><button id="cleanup">清理场景</button></div></header>
 <div class="workspace">
-<nav class="module-nav" aria-label="Kit 示例导航"><p class="eyebrow">EXPLORE THE API</p><h1>模块示例</h1><div id="module-list"></div><a id="legacy-link">综合验证演示 ↗</a></nav>
+<nav class="module-nav" aria-label="Kit 示例导航"><p class="eyebrow">EXPLORE THE API</p><h1>基础能力</h1><div id="module-list"></div></nav>
 <main class="preview"><div class="preview-heading"><div><span id="kit-name" class="eyebrow"></span><h2 id="example-title"></h2><p id="example-description"></p></div><a id="api-link" target="_blank" rel="noopener">API 文档 ↗</a></div><div id="map" aria-label="Cesium 示例地图"></div><section class="result" aria-live="polite"><span class="eyebrow">运行结果</span><p id="status">正在初始化…</p><p id="resources"></p></section></main>
 <aside class="inspector"><section><div class="section-heading"><h2>参数设置</h2><span id="parameter-state">已应用</span></div><form id="parameters"></form><button id="apply" type="submit" form="parameters" class="primary">应用参数</button><p class="hint">修改后点击应用参数。重建与切换模块会清理上一场景。</p><div id="actions" class="actions" aria-label="示例操作"></div></section><section class="code-section"><div class="section-heading"><h2>代码示例</h2><button id="copy-code">复制代码</button></div><p class="hint">对应当前运行参数；需安装 Cesium、配置静态资源并提供 #map 容器。</p><pre tabindex="0" aria-label="当前示例代码"><code id="code"></code></pre><p id="copy-status" aria-live="polite"></p></section></aside>
 </div><script type="module" src="/center.js"></script>

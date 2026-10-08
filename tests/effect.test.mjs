@@ -52,14 +52,14 @@ test('wave is a sampled ENU sine polyline with predictable amplitude and time ev
   const { kit, at } = fixture()
   const handle = kit.addWave({ position, length: 1000, wavelength: 1000, amplitude: 100, segments: 8, duration: 4 })
   const line = handle.entities[0].polyline
-  const points = line.positions.getValue(at(0))
+  const points = line.positions.getValue(at(0)).map(point => Cartesian3.clone(point))
   assert.equal(points.length, 9)
   const frame = Transforms.eastNorthUpToFixedFrame(CoordinateKit.fromDegrees(position.longitude, position.latitude, position.height))
   const inverse = Matrix4.inverseTransformation(frame, new Matrix4())
   const local = Matrix4.multiplyByPoint(inverse, points[6], new Cartesian3())
   assert.ok(Math.abs(local.x - 250) < 1e-6)
   assert.ok(Math.abs(local.y - 100) < 1e-6)
-  assert.notDeepEqual(line.positions.getValue(at(0)), line.positions.getValue(at(1)))
+  assert.notDeepEqual(points, line.positions.getValue(at(1)))
   kit.dispose()
 })
 

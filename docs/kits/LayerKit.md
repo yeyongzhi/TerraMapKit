@@ -2,6 +2,73 @@
 
 统一管理影像、热力图与点聚合图层，支持逻辑 ID、数据更新、显隐与独立清理。所有图层共享 ID 空间。
 
+## 高德与天地图底图
+
+### 底图切换
+
+```ts
+import { LayerKit, createImageryProvider } from 'terra-map-kit/layer'
+const layers = new LayerKit(viewer)
+await layers.setBaseLayer({
+  provider: createImageryProvider({ type: 'tianditu', options: { key, layer: 'vec' } }),
+  annotations: createImageryProvider({ type: 'tianditu', options: { key, layer: 'cva' } }),
+  alpha: 1, show: true, timeoutMs: 10000
+})
+layers.getBaseLayer() // 当前原生 ImageryLayer，尚未设置时为 undefined
+layers.removeBaseLayer() // 取消等待中的切换，并移除本 Kit 的底图及注记
+```
+
+`setBaseLayer(options): Promise<ImageryLayer>` 接收原生 Provider 或其 Promise；annotations 可选，表示一起切换的注记 Provider。alpha 默认 1（0–1），show 默认 true，timeoutMs 默认 10000，范围为 1–60000 的整数。返回主底图，不暴露内部 ID；其他影像仍使用 addImageLayer 管理。
+
+切换先等待 Provider，再请求其覆盖范围中心、minimumLevel（缺省 0）的一张瓦片。主图与注记均成功后才插入并替换旧组；失败、超时和无瓦片返回保留旧图。连续调用以最后一次为准，较早 Promise 拒绝；removeBaseLayer 和 dispose 及时终止等待，迟到结果不会附加到 Viewer。不能保证中止 Provider 自身网络请求。被取代的调用需处理拒绝。
+
+首张瓦片检查用于发现地址、授权与解码等初始错误，不能保证所有层级或位置的后续请求成功。后续错误仍通过 Cesium Provider 的 errorEvent 处理，不自动撤回已完成的切换。底图组在旧组原位置或索引 0 插入，不移除 Viewer 中的外部底图；需要完全替换 Viewer 初始底图时，由应用明确移除该外部图层。
+
+底图和注记只归当前 Kit 所有，通过 removeImageLayer 移除组内成员时会移除整组。外部删除成员后 getBaseLayer 会清理失效组。原生集合回调在提交之后抛错，不会撤销已提交的新组。
+
+### 统一影像来源
+
+`createImageryProvider(source: ImagerySource): ImageryProvider` 接收 type 与 options，返回原生 Provider，不添加到地图。
+
+| type | options 类型 | 关键配置 |
+| --- | --- | --- |
+| xyz | UrlTemplateImageryProvider.ConstructorOptions | url 模板、tilingScheme、minimumLevel、maximumLevel |
+| wmts | WebMapTileServiceImageryProvider.ConstructorOptions | url、layer、style、tileMatrixSetID、tileMatrixLabels |
+| wms | WebMapServiceImageryProvider.ConstructorOptions | url、layers、parameters、tilingScheme |
+| amap | AmapLayerOptions | 应用提供的 XYZ url |
+| tianditu | TiandituLayerOptions | key、layer、maximumLevel |
+
+```ts
+const provider = createImageryProvider({
+  type: 'wms',
+  options: { url: wmsUrl, layers: 'base', parameters: { format: 'image/png', transparent: true } }
+})
+await layers.setBaseLayer({ provider })
+// 也可以 await layers.addImageLayer({ id: 'overlay', provider })
+```
+
+options 保留对应 Cesium 构造配置；经纬度网格、WebMercator、WMTS 矩阵标签与缩放范围必须与服务一致。不会推断或转换 GCJ-02、BD-09，也不自动探测 WMS/WMTS 能力文档。自定义原生 Provider 的接入方式保持有效。导出类型包含 ImagerySource 和 BaseLayerOptions。
+
+`addAmapLayer(options): Promise<ImageryLayer>` 与 `addTiandituLayer(options): Promise<ImageryLayer>` 复用影像图层的 ID、显隐、透明度、查询和清理机制。
+
+```ts
+const layers = new LayerKit(viewer)
+await layers.addAmapLayer({ id: 'amap', url: amapXYZUrl })
+await layers.addTiandituLayer({ id: 'tianditu', key: tiandituKey, layer: 'vec' })
+await layers.addTiandituLayer({ id: 'labels', key: tiandituKey, layer: 'cva' })
+```
+
+| 参数 | 高德 | 天地图 |
+| --- | --- | --- |
+| 服务配置 | url 必填，包含 `{x}`、`{y}`、`{z}`；其余原生 UrlTemplateImageryProvider 选项可传入 | key 必填，由调用方配置 |
+| layer | 由 URL 决定 | vec/cva/img/cia/ter/cta/ibo；默认 vec |
+| maximumLevel | 原生 Provider 参数 | 1–18 整数，默认 18 |
+| id / alpha / show | 可选，自动 ID / 1 / true | 同左 |
+
+独立工厂 `createAmapImageryProvider(options)`、`createTiandituImageryProvider(options)` 返回原生 Provider，可从根入口或 layer 子入口导入。默认使用 WebMercator；天地图使用 HTTPS WMTS、w 矩阵与 0–7 子域。地图和注记分别添加，服务说明见[天地图官方文档](https://heilongjiang.tianditu.gov.cn/iportal/iClient/forJavaScript/docs/openlayers/ol.source.Tianditu.html)。
+
+高德 URL 由应用提供，不内置未经确认的瓦片地址，也不自动处理坐标纠偏；高德 GCJ-02 与 WGS84 叠加差异需由应用处理，见[高德官方坐标说明](https://a.amap.com/jsapi/static/doc/20230922/index.html)。服务授权、配额、网络与密钥有效性由服务方决定。本地测试模拟请求，不代表线上服务可用性。
+
 ## 模块入口
 
 ```ts
@@ -23,7 +90,7 @@ import { LayerKit } from 'terra-map-kit/layer'
 | `getLayer(id)` / `removeLayer(id)` | 三类图层共享 ID | 图层/句柄或 undefined / boolean | 已实现 |
 | `dispose()` | 无 | `void` | 已实现 |
 
-`LayerKit` 操作 `viewer.imageryLayers`，返回 Cesium 原生图层，方便与原生 API 混用。只移除本实例登记的图层，不清空应用中已有图层。`provider` 的创建可由调用方使用 Cesium 原生 `UrlTemplateImageryProvider`、WMS、WMTS 等类完成；常见来源的快捷方法安排在后续迭代。
+`LayerKit` 操作 `viewer.imageryLayers`，返回 Cesium 原生图层，方便与原生 API 混用。只移除本实例登记的图层，不清空应用中已有图层。其他服务可使用 Cesium 原生 URL 模板、WMS、WMTS Provider。
 
 ```ts
 import { GridImageryProvider } from 'cesium'
@@ -116,17 +183,17 @@ heat.remove()
 `addClusterLayer(options): Promise<ClusterLayerHandle>` 创建独立 CustomDataSource，通过 Cesium 原生 EntityCluster 按屏幕距离聚合点，聚合标记显示成员数量。
 
 ```ts
-const sensors = await layers.addClusterLayer({
-  id: 'sensors', pixelRange: 80, minimumClusterSize: 2,
+const points = await layers.addClusterLayer({
+  id: 'points', pixelRange: 80, minimumClusterSize: 2,
   data: [
     { id: 's1', longitude: 116.39, latitude: 39.9, height: 30 },
     { id: 's2', longitude: 116.391, latitude: 39.901, height: 30 }
   ]
 })
-sensors.setData([{ id: 's3', longitude: 116.4, latitude: 39.9, label: '站点' }])
-sensors.setClustering(false)
-sensors.setVisible(false)
-sensors.remove()
+points.setData([{ id: 's3', longitude: 116.4, latitude: 39.9, label: '站点' }])
+points.setClustering(false)
+points.setVisible(false)
+points.remove()
 ```
 
 | 参数 | 默认值 | 说明 |
@@ -144,8 +211,8 @@ height 默认 0，表示 WGS84 椭球高度（米），不自动贴地。点 ID 
 ## 统一查询与移除
 
 ```ts
-layers.getLayer('sensors') // ImageryLayer、数据图层句柄或 undefined
-layers.removeLayer('sensors') // boolean
+layers.getLayer('points') // ImageryLayer、数据图层句柄或 undefined
+layers.removeLayer('points') // boolean
 layers.dispose() // 释放影像、热力纹理、数据源及聚合监听
 ```
 

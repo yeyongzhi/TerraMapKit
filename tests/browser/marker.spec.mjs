@@ -1,0 +1,41 @@
+import { test, expect } from '@playwright/test'
+async function ready(page) {
+  await page.goto('/marker-validation.html')
+  await page.waitForFunction(() => window.markerValidation?.viewer.scene.frameState.frameNumber > 3)
+}
+test('generic marker click, hover and style updates work under overlapping effects', async ({ page }) => {
+  const errors = []; page.on('pageerror', error => errors.push(error.message)); await ready(page)
+  const p = await page.evaluate(() => window.markerValidation.screen())
+  await page.mouse.move(p.x, p.y); await page.mouse.click(p.x, p.y)
+  await expect.poll(() => page.evaluate(() => window.markerValidation.events)).toContain('click:marker')
+  await expect.poll(() => page.evaluate(() => window.markerValidation.events)).toContain('enter:marker')
+  await page.evaluate(() => window.markerValidation.overlay()); await page.waitForTimeout(300); await page.mouse.click(p.x, p.y)
+  expect(await page.evaluate(() => {
+    const { marker, events } = window.markerValidation, entity = marker.entity
+    marker.patch({ image: { image: '/pin.svg' }, label: { text: '标记更新' } })
+    return entity === marker.entity && events.filter(e => e === 'click:marker').length >= 2 && !('setStatus' in marker)
+  })).toBe(true)
+  await page.mouse.move(20, 20); await expect.poll(() => page.evaluate(() => window.markerValidation.events)).toContain('leave:marker')
+  expect(await page.evaluate(() => window.markerValidation.errors)).toEqual([]); expect(errors).toEqual([])
+})
+test('marker dragging retains height, separates draft, commits and cancels while releasing the camera', async ({ page }) => {
+  await ready(page); await page.evaluate(() => window.markerValidation.start())
+  const p = await page.evaluate(() => window.markerValidation.screen()), before = await page.evaluate(() => window.markerValidation.state())
+  await page.mouse.move(p.x, p.y); await page.mouse.down()
+  await expect.poll(() => page.evaluate(() => window.markerValidation.state().inputs)).toBe(false)
+  await page.mouse.move(p.x + 50, p.y + 30, { steps: 6 }); await page.mouse.up()
+  const draft = await page.evaluate(() => window.markerValidation.state())
+  expect(draft.inputs).toBe(true); expect(draft.position).toEqual(before.position)
+  expect(draft.draft.longitude).not.toBe(before.position.longitude); expect(draft.draft.height).toBe(100)
+  await page.evaluate(() => window.markerValidation.editor.finish())
+  expect((await page.evaluate(() => window.markerValidation.state())).position).toEqual(draft.draft)
+  await page.evaluate(() => window.markerValidation.start())
+  const moved = await page.evaluate(() => window.markerValidation.screen())
+  await page.mouse.move(moved.x, moved.y); await page.mouse.down()
+  await expect.poll(() => page.evaluate(() => window.markerValidation.state().inputs)).toBe(false)
+  await page.mouse.move(moved.x + 20, moved.y)
+  await page.evaluate(() => window.markerValidation.editor.cancel())
+  await page.mouse.up()
+  const after = await page.evaluate(() => window.markerValidation.state())
+  expect(after.inputs).toBe(true); expect(after.entities).toBe(2); expect(after.position).toEqual(draft.draft); expect(after.errors).toEqual([])
+})

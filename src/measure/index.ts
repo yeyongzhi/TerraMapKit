@@ -1,8 +1,9 @@
 import { Cartesian3, Ellipsoid, EllipsoidGeodesic, Entity, LabelStyle, Color, type Viewer } from 'cesium'
 import { CoordinateKit, type DegreesPoint } from '../coordinate/index.js'
 import { DrawKit, type DrawSession, type DrawResult } from '../draw/index.js'
-import { assertViewer, clonePosition, render } from '../internal/index.js'
-import { localArea } from '../internal/geometry.js'
+import { assertViewer, clonePosition, finite, render } from '../internal/index.js'
+import { TerrainKit, type TerrainSampleOptions } from '../terrain/index.js'
+import { localArea, localAreaWithHoles } from '../internal/geometry.js'
 
 export type MeasureType = 'distance' | 'area' | 'height'
 export interface MeasureResult {
@@ -18,6 +19,7 @@ export class MeasureKit {
   private disposed = false
   private readonly drawings: DrawKit
   private readonly results = new Map<string, MeasureResult>()
+  private readonly terrainTasks = new Set<TerrainKit>()
   constructor(private readonly viewer: Viewer) { this.assertActive(); this.drawings = new DrawKit(viewer) }
   private assertActive(): void { assertViewer(this.viewer, this.disposed, 'MeasureKit') }
   static distance(positions: readonly Cartesian3[]): number {
@@ -38,8 +40,29 @@ export class MeasureKit {
     return distance
   }
   static area(positions: readonly Cartesian3[]): number { return localArea(positions) }
+  static areaWithHoles(outer: readonly Cartesian3[], holes: readonly (readonly Cartesian3[])[]): number { return localAreaWithHoles(outer, holes) }
   static heightDifference(from: Cartesian3, to: Cartesian3): number {
     return CoordinateKit.toDegrees(clonePosition(to)).height - CoordinateKit.toDegrees(clonePosition(from)).height
+  }
+  static horizontalDistance(from: Cartesian3, to: Cartesian3): number { const p = CoordinateKit.toLocal(from, to); return Math.hypot(p.x, p.y) }
+  static bearing(from: DegreesPoint, to: DegreesPoint): number {
+    const a = Ellipsoid.WGS84.cartesianToCartographic(CoordinateKit.fromDegrees(from.longitude, from.latitude))!, b = Ellipsoid.WGS84.cartesianToCartographic(CoordinateKit.fromDegrees(to.longitude, to.latitude))!
+    if (a.longitude === b.longitude && a.latitude === b.latitude) throw new RangeError('Bearing requires distinct points')
+    return new EllipsoidGeodesic(a, b, Ellipsoid.WGS84).startHeading
+  }
+  static slope(from: Cartesian3, to: Cartesian3): number { return Math.atan2(MeasureKit.heightDifference(from, to), MeasureKit.horizontalDistance(from, to)) }
+  static angle(a: Cartesian3, vertex: Cartesian3, b: Cartesian3): number {
+    const x = Cartesian3.subtract(clonePosition(a), clonePosition(vertex), new Cartesian3()), y = Cartesian3.subtract(clonePosition(b), vertex, new Cartesian3())
+    if (Cartesian3.magnitude(x) < 1e-6 || Cartesian3.magnitude(y) < 1e-6) throw new RangeError('Angle requires nonzero edges')
+    return Cartesian3.angleBetween(x, y)
+  }
+  static format(value: number, unit: 'm' | 'km' | 'm²' | 'km²' = 'm', digits = 2): string {
+    finite(value, 'value'); if (!['m', 'km', 'm²', 'km²'].includes(unit)) throw new TypeError('Invalid unit'); if (!Number.isInteger(digits) || digits < 0 || digits > 10) throw new RangeError('digits must be 0–10')
+    return `${(value / (unit === 'km' ? 1000 : unit === 'km²' ? 1000000 : 1)).toFixed(digits)} ${unit}`
+  }
+  async terrainDistance(points: readonly DegreesPoint[], spacing = 100, options: TerrainSampleOptions = {}): Promise<number> {
+    this.assertActive(); const terrain = new TerrainKit(this.viewer); this.terrainTasks.add(terrain)
+    try { const samples = await terrain.samplePolyline(points, spacing, options); this.assertActive(); if (samples.some(s => !s.position)) throw new Error('Terrain height unavailable'); return MeasureKit.distance(samples.map(s => s.position!)) } finally { this.terrainTasks.delete(terrain); terrain.dispose() }
   }
   start(options: MeasureOptions): DrawSession {
     this.assertActive()
@@ -79,5 +102,5 @@ export class MeasureKit {
   }
   cancel(): void { this.drawings.cancel() }
   clear(): void { this.drawings.cancel(); for (const id of [...this.results.keys()]) this.remove(id) }
-  dispose(): void { if (!this.disposed) { this.clear(); this.drawings.dispose(); this.disposed = true } }
+  dispose(): void { if (!this.disposed) { for (const terrain of this.terrainTasks) terrain.dispose(); this.terrainTasks.clear(); this.clear(); this.drawings.dispose(); this.disposed = true } }
 }

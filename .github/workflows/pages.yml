@@ -5,6 +5,10 @@ on:
     branches: [main]
     paths:
       - 'docs/**'
+      - 'src/**'
+      - 'examples/**'
+      - 'scripts/**'
+      - 'tsconfig*.json'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - '.github/workflows/pages.yml'
